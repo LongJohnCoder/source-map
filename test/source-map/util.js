@@ -55,6 +55,7 @@ define(function (require, exports, module) {
     sourceRoot: '',
     mappings: 'CAAC,IAAI,IAAM,SAAUA,GAClB,OAAOC,IAAID;CCDb,IAAI,IAAM,SAAUE,GAClB,OAAOA'
   };
+
   // This mapping is identical to above, but uses the indexed format instead.
   exports.indexedTestMap = {
     version: 3,
@@ -109,6 +110,7 @@ define(function (require, exports, module) {
       }
     ]
   };
+
   exports.indexedTestMapDifferentSourceRoots = {
     version: 3,
     file: 'min.js',
@@ -162,6 +164,7 @@ define(function (require, exports, module) {
       }
     ]
   };
+
   exports.testMapWithSourcesContent = {
     version: 3,
     file: 'min.js',
@@ -178,6 +181,7 @@ define(function (require, exports, module) {
     sourceRoot: '/the/root',
     mappings: 'CAAC,IAAI,IAAM,SAAUA,GAClB,OAAOC,IAAID;CCDb,IAAI,IAAM,SAAUE,GAClB,OAAOA'
   };
+
   exports.testMapRelativeSources = {
     version: 3,
     file: 'min.js',
@@ -194,6 +198,7 @@ define(function (require, exports, module) {
     sourceRoot: '/the/root',
     mappings: 'CAAC,IAAI,IAAM,SAAUA,GAClB,OAAOC,IAAID;CCDb,IAAI,IAAM,SAAUE,GAClB,OAAOA'
   };
+
   exports.emptyMap = {
     version: 3,
     file: 'min.js',

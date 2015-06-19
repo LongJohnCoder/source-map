@@ -21,7 +21,7 @@ in the following environments:
 
 Install Node and then run
 
-    $ git clone https://fitzgen@github.com/mozilla/source-map.git
+    $ git clone https://github.com/mozilla/source-map.git
     $ cd source-map
     $ npm link .
 
