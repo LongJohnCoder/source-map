@@ -19,6 +19,10 @@ const now = typeof window === "object" && window.performance && window.performan
       ? () => window.performance.now()
       : () => now();
 
+const yieldForTick = typeof setTimeout === "function"
+      ? () => new Promise(resolve => setTimeout(resolve, 1))
+      : () => Promise.resolve();
+
 // Benchmark running an action n times.
 async function benchmark(setup, action, tearDown = () => {}) {
   __benchmarkResults = [];
@@ -27,36 +31,40 @@ async function benchmark(setup, action, tearDown = () => {}) {
   // Warm up the JIT.
   for (let i = 0; i < WARM_UP_ITERATIONS; i++) {
     await action();
+    await yieldForTick();
   }
 
-  var stats = new Stats("ms");
+  const stats = new Stats("ms");
 
   for (let i = 0; i < BENCH_ITERATIONS; i++) {
     console.time("iteration");
-    var thisIterationStart = now();
+    const thisIterationStart = now();
     await action();
     stats.take(now() - thisIterationStart);
     console.timeEnd("iteration");
-    await new Promise(resolve => setTimeout(resolve, 100));
+
+    await yieldForTick();
   }
 
   await tearDown();
   return stats;
 }
 
-const TEST_MAPPING = {
-  generatedLine: 32994,
-  generatedColumn: 23,
-  source: "file:///Users/kraman/workspace/scala-js/scalalib/source/src/library/scala/Tuple2.scala",
-  originalLine: 19,
-  originalColumn: 11,
-  name: "$ScalaJSEnvironment"
-};
+async function getTestMapping() {
+  let smc = await new sourceMap.SourceMapConsumer(testSourceMap);
+
+  let mappings = [];
+  smc.eachMapping([].push, mappings, sourceMap.SourceMapConsumer.ORIGINAL_ORDER);
+
+  let testMapping = mappings[Math.floor(mappings.length / 13)];
+  smc.destroy();
+  return testMapping;
+}
 
 var benchmarks = {
   "SourceMapGenerator#toString": () => {
-    var smg = null;
-    benchmark(
+    let smg;
+    return benchmark(
       async function () {
         var smc = await new sourceMap.SourceMapConsumer(testSourceMap);
         smg = sourceMap.SourceMapGenerator.fromSourceMap(smc);
@@ -68,44 +76,56 @@ var benchmarks = {
     );
   },
 
-  "set first breakpoint (parse + query-by-original-location)": () => benchmark(
-    noop,
-    async function () {
-      var smc = await new sourceMap.SourceMapConsumer(testSourceMap);
-
-      benchmarkBlackbox(smc.allGeneratedPositionsFor({
-        source: TEST_MAPPING.source,
-        line: TEST_MAPPING.originalLine,
-      }).length);
-
-      smc.destroy();
-    }
-  ),
-
-  "first pause at exception (parse + query-by-generated-location)": () => benchmark(
-    noop,
-    async function () {
-      var smc = await new sourceMap.SourceMapConsumer(testSourceMap);
-
-      benchmarkBlackbox(smc.originalPositionFor({
-        line: TEST_MAPPING.generatedLine,
-        column: TEST_MAPPING.generatedColumn,
-      }));
-
-      smc.destroy();
-    }
-  ),
-
-  "subsequent setting breakpoints (already parsed; query-by-original-location)": () => {
-    var smc;
+  "set first breakpoint (parse + query-by-original-location)": () => {
+    let testMapping;
     return benchmark(
       async function () {
+        testMapping = await getTestMapping();
+      },
+      async function () {
+        let smc = await new sourceMap.SourceMapConsumer(testSourceMap);
+
+        benchmarkBlackbox(smc.allGeneratedPositionsFor({
+          source: testMapping.source,
+          line: testMapping.originalLine,
+        }).length);
+
+        smc.destroy();
+      }
+    );
+  },
+
+  "first pause at exception (parse + query-by-generated-location)": () => {
+    let testMapping;
+    return benchmark(
+      async function () {
+        testMapping = await getTestMapping();
+      },
+      async function () {
+        let smc = await new sourceMap.SourceMapConsumer(testSourceMap);
+
+        benchmarkBlackbox(smc.originalPositionFor({
+          line: testMapping.generatedLine,
+          column: testMapping.generatedColumn,
+        }));
+
+        smc.destroy();
+      }
+    );
+  },
+
+  "subsequent setting breakpoints (already parsed; query-by-original-location)": () => {
+    let testMapping;
+    let smc;
+    return benchmark(
+      async function () {
+        testMapping = await getTestMapping();
         smc = await new sourceMap.SourceMapConsumer(testSourceMap);
       },
       async function () {
         benchmarkBlackbox(smc.allGeneratedPositionsFor({
-          source: TEST_MAPPING.source,
-          line: TEST_MAPPING.originalLine,
+          source: testMapping.source,
+          line: testMapping.originalLine,
         }));
       },
       function () {
@@ -115,15 +135,17 @@ var benchmarks = {
   },
 
   "subsequent pauses at exception (already parsed; query-by-generated-location)": () => {
-    var smc;
+    let testMapping;
+    let smc;
     return benchmark(
       async function () {
+        testMapping = await getTestMapping();
         smc = await new sourceMap.SourceMapConsumer(testSourceMap);
       },
       async function () {
         benchmarkBlackbox(smc.originalPositionFor({
-          line: TEST_MAPPING.generatedLine,
-          column: TEST_MAPPING.generatedColumn,
+          line: testMapping.generatedLine,
+          column: testMapping.generatedColumn,
         }));
       },
       function () {
@@ -136,7 +158,7 @@ var benchmarks = {
     return benchmark(
       noop,
       async function () {
-        var smc = await new sourceMap.SourceMapConsumer(testSourceMap);
+        const smc = await new sourceMap.SourceMapConsumer(testSourceMap);
 
         let maxLine = 0;
         let maxCol = 0;
@@ -155,7 +177,7 @@ var benchmarks = {
   },
 
   "already parsed; iterating over all mappings": () => {
-    var smc;
+    let smc;
     return benchmark(
       async function () {
         smc = await new sourceMap.SourceMapConsumer(testSourceMap);
