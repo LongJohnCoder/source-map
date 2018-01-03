@@ -54,7 +54,7 @@ async function getTestMapping() {
   let smc = await new sourceMap.SourceMapConsumer(testSourceMap);
 
   let mappings = [];
-  smc.eachMapping([].push, mappings, sourceMap.SourceMapConsumer.ORIGINAL_ORDER);
+  smc.eachMapping(m => mappings.push(m), null, sourceMap.SourceMapConsumer.ORIGINAL_ORDER);
 
   let testMapping = mappings[Math.floor(mappings.length / 13)];
   smc.destroy();
