@@ -26,13 +26,18 @@ const yieldForTick = typeof setTimeout === "function"
 // Benchmark running an action n times.
 async function benchmark(setup, action, tearDown = () => {}) {
   __benchmarkResults = [];
+
+  console.time("setup");
   await setup();
+  console.timeEnd("setup");
 
   // Warm up the JIT.
+  console.time("warmup");
   for (let i = 0; i < WARM_UP_ITERATIONS; i++) {
     await action();
     await yieldForTick();
   }
+  console.timeEnd("warmup");
 
   const stats = new Stats("ms");
 
@@ -76,7 +81,7 @@ var benchmarks = {
     );
   },
 
-  "set first breakpoint (parse + query-by-original-location)": () => {
+  "set.first.breakpoint": () => {
     let testMapping;
     return benchmark(
       async function () {
@@ -95,7 +100,7 @@ var benchmarks = {
     );
   },
 
-  "first pause at exception (parse + query-by-generated-location)": () => {
+  "first.pause.at.exception": () => {
     let testMapping;
     return benchmark(
       async function () {
@@ -114,7 +119,7 @@ var benchmarks = {
     );
   },
 
-  "subsequent setting breakpoints (already parsed; query-by-original-location)": () => {
+  "subsequent.setting.breakpoints": () => {
     let testMapping;
     let smc;
     return benchmark(
@@ -134,7 +139,7 @@ var benchmarks = {
     )
   },
 
-  "subsequent pauses at exception (already parsed; query-by-generated-location)": () => {
+  "subsequent.pausing.at.exceptions": () => {
     let testMapping;
     let smc;
     return benchmark(
@@ -154,7 +159,7 @@ var benchmarks = {
     );
   },
 
-  "parse + iterating over all mappings": () => {
+  "parse.and.iterate": () => {
     return benchmark(
       noop,
       async function () {
@@ -176,7 +181,7 @@ var benchmarks = {
     );
   },
 
-  "already parsed; iterating over all mappings": () => {
+  "iterate.already.parsed": () => {
     let smc;
     return benchmark(
       async function () {
