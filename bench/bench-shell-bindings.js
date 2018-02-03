@@ -19,5 +19,5 @@ load("./bench.js");
 print("Parsing source map");
 print(benchmarkParseSourceMap());
 print();
-print("Serializing source map");
-print(benchmarkSerializeSourceMap());
+// print("Serializing source map");
+// print(benchmarkSerializeSourceMap());
