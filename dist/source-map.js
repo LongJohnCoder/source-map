@@ -2779,7 +2779,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    //
 	    //   * Every element in `ary[i+1 .. j-1]` is greater than the pivot.
 	    for (var j = p; j < r; j++) {
-	      if (comparator(ary[j], pivot) <= 0) {
+	      if (comparator(ary[j], pivot, false) <= 0) {
 	        i += 1;
 	        swap(ary, i, j);
 	      }
