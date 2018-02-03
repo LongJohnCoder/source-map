@@ -2708,8 +2708,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	// fact, when sorting with a comparator, these costs outweigh the benefits of
 	// sorting in C++. By using our own JS-implemented Quick Sort (below), we get
 	// a ~3500ms mean speed-up in `bench/bench.html`.
-
-	/**
+  function SortTemplate(comparator) {
+    /**
 	 * Swap the elements indexed by `x` and `y` in the array `ary`.
 	 *
 	 * @param {Array} ary
@@ -2749,7 +2749,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} r
 	 *        End index of the array
 	 */
-	function doQuickSort(ary, comparator, p, r) {
+	function doQuickSort(ary, p, r) {
 	  // If our lower bound is less than our upper bound, we (1) partition the
 	  // array into two pieces and (2) recurse on each half. If it is not, this is
 	  // the empty array and our base case.
@@ -2790,11 +2790,22 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    // (2) Recurse on each half.
 
-	    doQuickSort(ary, comparator, p, q - 1);
-	    doQuickSort(ary, comparator, q + 1, r);
+	    doQuickSort(ary, p, q - 1);
+	    doQuickSort(ary, q + 1, r);
 	  }
 	}
+  
+  return doQuickSort; 
+}
 
+let id = 0;
+function cloneSort(comparator) {
+  let template = SortTemplate.toString();
+  let templateFn = new Function(`return ${template}`)();
+  return templateFn(comparator);  // Invoke template to get doQuickSort
+}
+
+  var sortCache = new WeakMap();
 	/**
 	 * Sort the given array in-place with the given comparator function.
 	 *
@@ -2804,7 +2815,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *        Function to use to compare two items.
 	 */
 	exports.quickSort = function (ary, comparator) {
-	  doQuickSort(ary, comparator, 0, ary.length - 1);
+	  var doQuickSort = sortCache.get(comparator);
+    if (typeof doQuickSort === 'undefined') {
+      doQuickSort = cloneSort(comparator);
+      sortCache.set(comparator, doQuickSort);
+    }
+    doQuickSort(ary, 0, ary.length - 1);
 	};
 
 
