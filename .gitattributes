@@ -1,5 +1,5 @@
 dist/source-map.debug.js binary
-dist/source-map.js binary
+#dist/source-map.js binary
 dist/source-map.min.js binary
 dist/source-map.min.js.map binary
 
