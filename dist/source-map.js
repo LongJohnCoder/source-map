@@ -1906,6 +1906,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var generatedMappings = [];
 	    var mapping, str, segment, end, value;
 
+      var startParsing = Date.now();
 	    while (index < length) {
 	      if (aStr.charAt(index) === ';') {
 	        generatedLine++;
@@ -1986,12 +1987,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	      }
 	    }
+      var endParsing = Date.now();
 
+      var startSortGenerated = Date.now();
 	    quickSort(generatedMappings, util.compareByGeneratedPositionsDeflated);
 	    this.__generatedMappings = generatedMappings;
+      var endSortGenerated = Date.now();
 
+      var startSortOriginal = Date.now();
 	    quickSort(originalMappings, util.compareByOriginalPositions);
 	    this.__originalMappings = originalMappings;
+      var endSortOriginal = Date.now();
+      console.log(`${(endParsing - startParsing).toFixed(2)}, ${(endSortGenerated - startSortGenerated).toFixed(2)}, ${(endSortOriginal - startSortOriginal).toFixed(2)}`);
 	  };
 
 	/**
