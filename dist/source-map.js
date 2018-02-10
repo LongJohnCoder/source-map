@@ -1900,11 +1900,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var previousName = 0;
 	    var length = aStr.length;
 	    var index = 0;
-	    var cachedSegments = {};
 	    var temp = {};
 	    var originalMappings = [];
 	    var generatedMappings = [];
-	    var mapping, str, segment, end, value;
+	    var mapping, str, end, value;
+
+      var segmentLength = 0;
+      var segment = new Int32Array(5);
 
       var startParsing = Date.now();
 	    while (index < length) {
@@ -1920,46 +1922,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	        mapping = new Mapping();
 	        mapping.generatedLine = generatedLine;
 
-	        // Because each offset is encoded relative to the previous one,
-	        // many segments often have the same encoding. We can exploit this
-	        // fact by caching the parsed variable length fields of each segment,
-	        // allowing us to avoid a second parse if we encounter the same
-	        // segment again.
-	        for (end = index; end < length; end++) {
-	          if (this._charIsMappingSeparator(aStr, end)) {
-	            break;
-	          }
-	        }
-	        str = aStr.slice(index, end);
-
-	        segment = cachedSegments[str];
-	        if (segment) {
-	          index += str.length;
-	        } else {
-	          segment = [];
-	          while (index < end) {
+	          segmentLength = 0;
+	          while (aStr.charCodeAt(index) !== 59 && aStr.charCodeAt(index) !== 44) {
 	            base64VLQ.decode(aStr, index, temp);
 	            value = temp.value;
 	            index = temp.rest;
-	            segment.push(value);
+              if (segmentLength < 5) { 
+	              segment[segmentLength++] = value;
+              }
 	          }
 
-	          if (segment.length === 2) {
+	          if (segmentLength === 2) {
 	            throw new Error('Found a source, but no line and column');
 	          }
 
-	          if (segment.length === 3) {
+	          if (segmentLength === 3) {
 	            throw new Error('Found a source and line, but no column');
 	          }
-
-	          cachedSegments[str] = segment;
-	        }
 
 	        // Generated column.
 	        mapping.generatedColumn = previousGeneratedColumn + segment[0];
 	        previousGeneratedColumn = mapping.generatedColumn;
 
-	        if (segment.length > 1) {
+	        if (segmentLength > 1) {
 	          // Original source.
 	          mapping.source = previousSource + segment[1];
 	          previousSource += segment[1];
@@ -1974,7 +1959,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          mapping.originalColumn = previousOriginalColumn + segment[3];
 	          previousOriginalColumn = mapping.originalColumn;
 
-	          if (segment.length > 4) {
+	          if (segmentLength > 4) {
 	            // Original name.
 	            mapping.name = previousName + segment[4];
 	            previousName += segment[4];
