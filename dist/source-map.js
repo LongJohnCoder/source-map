@@ -1051,6 +1051,30 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	exports.compareByOriginalPositions = compareByOriginalPositions;
 
+	exports.compareByOriginalPositionsNoSource = function compareByOriginalPositionsNoSource(mappingA, mappingB, onlyCompareOriginal) {
+	  var cmp = mappingA.originalLine - mappingB.originalLine;
+	  if (cmp !== 0) {
+	    return cmp;
+	  }
+
+	  cmp = mappingA.originalColumn - mappingB.originalColumn;
+	  if (cmp !== 0 || onlyCompareOriginal) {
+	    return cmp;
+	  }
+
+	  cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+	  if (cmp !== 0) {
+	    return cmp;
+	  }
+
+	  cmp = mappingA.generatedLine - mappingB.generatedLine;
+	  if (cmp !== 0) {
+	    return cmp;
+	  }
+
+	  return strcmp(mappingA.name, mappingB.name);
+	}
+
 	/**
 	 * Comparator between two mappings with deflated source and name indices where
 	 * the generated positions are compared.
@@ -1089,6 +1113,30 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return strcmp(mappingA.name, mappingB.name);
 	}
 	exports.compareByGeneratedPositionsDeflated = compareByGeneratedPositionsDeflated;
+
+	exports.compareByGeneratedPositionsDeflatedNoLine = function compareByGeneratedPositionsDeflatedNoLine(mappingA, mappingB, onlyCompareGenerated) {
+	  var cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+	  if (cmp !== 0 || onlyCompareGenerated) {
+	    return cmp;
+	  }
+
+	  cmp = strcmp(mappingA.source, mappingB.source);
+	  if (cmp !== 0) {
+	    return cmp;
+	  }
+
+	  cmp = mappingA.originalLine - mappingB.originalLine;
+	  if (cmp !== 0) {
+	    return cmp;
+	  }
+
+	  cmp = mappingA.originalColumn - mappingB.originalColumn;
+	  if (cmp !== 0) {
+	    return cmp;
+	  }
+
+	  return strcmp(mappingA.name, mappingB.name);
+	}
 
 	function strcmp(aStr1, aStr2) {
 	  if (aStr1 === aStr2) {
@@ -1885,6 +1933,37 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.name = null;
 	}
 
+  const compareGenerated = util.compareByGeneratedPositionsDeflatedNoLine;
+
+	function sortGenerated(array, start) {
+		let l = array.length;
+		let n = array.length - start;
+		if (n <= 1) {
+			return;
+		} else if (n == 2) {
+			let a = array[start];
+			let b = array[start + 1];
+			if (compareGenerated(a, b) > 0) {
+				array[start] = b;
+				array[start + 1] = a;
+			}
+		} else if (n < 20) {
+			for (let i = start; i < l; i++) {
+				for (let j = i; j > start; j--) {
+					let a = array[j - 1];
+					let b = array[j];
+					if (compareGenerated(a, b) <= 0) {
+						break;
+					}
+					array[j - 1] = b;
+					array[j] = a;
+				}
+			}
+		} else {
+			quickSort(array, compareGenerated, start);
+		}
+	}
+
 	/**
 	 * Parse the mappings in a string in to a data structure which we can easily
 	 * query (the ordered arrays in the `this.__generatedMappings` and
@@ -1908,12 +1987,18 @@ return /******/ (function(modules) { // webpackBootstrap
       var segmentLength = 0;
       var segment = new Int32Array(5);
 
+      let previousGeneratedLineStart = 0;
+      let howMuchToSort = [];
+
+
       var startParsing = Date.now();
 	    while (index < length) {
 	      if (aStr.charAt(index) === ';') {
+	      	sortGenerated(generatedMappings, previousGeneratedLineStart);
 	        generatedLine++;
 	        index++;
 	        previousGeneratedColumn = 0;
+	        previousGeneratedLineStart = generatedMappings.length;
 	      }
 	      else if (aStr.charAt(index) === ',') {
 	        index++;
@@ -1927,7 +2012,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            base64VLQ.decode(aStr, index, temp);
 	            value = temp.value;
 	            index = temp.rest;
-              if (segmentLength < 5) { 
+              if (segmentLength < 5) {
 	              segment[segmentLength++] = value;
               }
 	          }
@@ -1968,19 +2053,36 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	        generatedMappings.push(mapping);
 	        if (typeof mapping.originalLine === 'number') {
-	          originalMappings.push(mapping);
+	        	while (originalMappings.length <= previousSource) {
+	        		originalMappings.push(null);
+	        	}
+	        	if (originalMappings[previousSource] === null) {
+	        		originalMappings[previousSource] = [];
+	        	}
+	          originalMappings[previousSource].push(mapping);
 	        }
 	      }
 	    }
       var endParsing = Date.now();
 
       var startSortGenerated = Date.now();
-	    quickSort(generatedMappings, util.compareByGeneratedPositionsDeflated);
+	    // quickSort(generatedMappings, util.compareByGeneratedPositionsDeflated);
+	    // for (var i = 0; i < generatedMappings.length - 1; i++) {
+	    //	let a = generatedMappings[i];
+	   // 	let b = generatedMappings[i + 1];
+	   // 	if (util.compareByGeneratedPositionsDeflated(a, b) > 0) {
+	   // 		throw 'Error';
+	   // 	}
+	    //}
 	    this.__generatedMappings = generatedMappings;
       var endSortGenerated = Date.now();
 
       var startSortOriginal = Date.now();
-	    quickSort(originalMappings, util.compareByOriginalPositions);
+      for (var i = 0; i < originalMappings.length; i++) {
+      	if (originalMappings[i] != null) {
+    	    quickSort(originalMappings[i], util.compareByOriginalPositionsNoSource);
+      	}
+      }
 	    this.__originalMappings = originalMappings;
       var endSortOriginal = Date.now();
       console.log(`${(endParsing - startParsing).toFixed(2)}, ${(endSortGenerated - startSortGenerated).toFixed(2)}, ${(endSortOriginal - startSortOriginal).toFixed(2)}`);
@@ -2471,7 +2573,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * and an object is returned with the following properties:
 	 *
 	 *   - line: The line number in the generated source, or null.  The
-	 *     line number is 1-based. 
+	 *     line number is 1-based.
 	 *   - column: The column number in the generated source, or null.
 	 *     The column number is 0-based.
 	 */
@@ -2786,8 +2888,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    doQuickSort(ary, q + 1, r);
 	  }
 	}
-  
-  return doQuickSort; 
+
+  return doQuickSort;
 }
 
 let id = 0;
@@ -2806,13 +2908,13 @@ function cloneSort(comparator) {
 	 * @param {function} comparator
 	 *        Function to use to compare two items.
 	 */
-	exports.quickSort = function (ary, comparator) {
+	exports.quickSort = function (ary, comparator, index) {
 	  var doQuickSort = sortCache.get(comparator);
     if (typeof doQuickSort === 'undefined') {
       doQuickSort = cloneSort(comparator);
       sortCache.set(comparator, doQuickSort);
     }
-    doQuickSort(ary, 0, ary.length - 1);
+    doQuickSort(ary, index | 0, ary.length - 1);
 	};
 
 
