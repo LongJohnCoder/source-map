@@ -1051,28 +1051,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	exports.compareByOriginalPositions = compareByOriginalPositions;
 
-	exports.compareByOriginalPositionsNoSource = function compareByOriginalPositionsNoSource(mappingA, mappingB, onlyCompareOriginal) {
-	  var cmp = mappingA.originalLine - mappingB.originalLine;
+	exports.compareByOriginalPositionsNoSource = function compareByOriginalPositionsNoSource(memory, mappingA, mappingB, onlyCompareOriginal) {
+	  var cmp = memory[mappingA + 3] - memory[mappingB + 3];
 	  if (cmp !== 0) {
 	    return cmp;
 	  }
 
-	  cmp = mappingA.originalColumn - mappingB.originalColumn;
+	  cmp = memory[mappingA + 4] - memory[mappingB + 4];
 	  if (cmp !== 0 || onlyCompareOriginal) {
 	    return cmp;
 	  }
 
-	  cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+	  cmp = memory[mappingA + 1] - memory[mappingB + 1];
 	  if (cmp !== 0) {
 	    return cmp;
 	  }
 
-	  cmp = mappingA.generatedLine - mappingB.generatedLine;
+	  cmp = memory[mappingA + 0] - memory[mappingB + 0];
 	  if (cmp !== 0) {
 	    return cmp;
 	  }
 
-	  return strcmp(mappingA.name, mappingB.name);
+	  return memory[mappingA + 5] - memory[mappingB + 5];
 	}
 
 	/**
@@ -1114,28 +1114,28 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 	exports.compareByGeneratedPositionsDeflated = compareByGeneratedPositionsDeflated;
 
-	exports.compareByGeneratedPositionsDeflatedNoLine = function compareByGeneratedPositionsDeflatedNoLine(mappingA, mappingB, onlyCompareGenerated) {
-	  var cmp = mappingA.generatedColumn - mappingB.generatedColumn;
+	exports.compareByGeneratedPositionsDeflatedNoLine = function compareByGeneratedPositionsDeflatedNoLine(memory, mappingA, mappingB, onlyCompareGenerated) {
+	  var cmp = memory[mappingA + 1] - memory[mappingB + 1];
 	  if (cmp !== 0 || onlyCompareGenerated) {
 	    return cmp;
 	  }
 
-	  cmp = strcmp(mappingA.source, mappingB.source);
+	  cmp = memory[mappingA + 2] - memory[mappingB + 2];
 	  if (cmp !== 0) {
 	    return cmp;
 	  }
 
-	  cmp = mappingA.originalLine - mappingB.originalLine;
+	  cmp = memory[mappingA + 3] - memory[mappingB + 3];
 	  if (cmp !== 0) {
 	    return cmp;
 	  }
 
-	  cmp = mappingA.originalColumn - mappingB.originalColumn;
+	  cmp = memory[mappingA + 4] - memory[mappingB + 4];
 	  if (cmp !== 0) {
 	    return cmp;
 	  }
 
-	  return strcmp(mappingA.name, mappingB.name);
+	  return memory[mappingA + 5] - memory[mappingB + 5];
 	}
 
 	function strcmp(aStr1, aStr2) {
@@ -1925,17 +1925,52 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Provide the JIT with a nice shape / hidden class.
 	 */
 	function Mapping() {
-	  this.generatedLine = 0;
-	  this.generatedColumn = 0;
-	  this.source = null;
-	  this.originalLine = null;
-	  this.originalColumn = null;
-	  this.name = null;
+		this._memory = null;
+		this.pointer = 0;
 	}
+
+	Mapping.prototype = {
+    get generatedLine () {
+      return this._memory[this.pointer + 0];
+    },
+    get generatedColumn () {
+      return this._memory[this.pointer + 1];
+    },
+    get source () {
+      return this._memory[this.pointer + 2];
+    },
+    get originalLine () {
+      return this._memory[this.pointer + 3];
+    },
+    get originalColumn () {
+      return this._memory[this.pointer + 4];
+    },
+    get name () {
+      return this._memory[this.pointer + 5];
+    },
+    set generatedLine (value) {
+      this._memory[this.pointer + 0] = value;
+    },
+    set generatedColumn (value) {
+      this._memory[this.pointer + 1] = value;
+    },
+    set source (value) {
+      this._memory[this.pointer + 2] = value;
+    },
+    set originalLine (value) {
+      this._memory[this.pointer + 3] = value;
+    },
+    set originalColumn (value) {
+      this._memory[this.pointer + 4] = value;
+    },
+    set name (value) {
+      this._memory[this.pointer + 5] = value;
+    },
+	};
 
   const compareGenerated = util.compareByGeneratedPositionsDeflatedNoLine;
 
-	function sortGenerated(array, start) {
+	function sortGenerated(memory, array, start) {
 		let l = array.length;
 		let n = array.length - start;
 		if (n <= 1) {
@@ -1943,7 +1978,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		} else if (n == 2) {
 			let a = array[start];
 			let b = array[start + 1];
-			if (compareGenerated(a, b) > 0) {
+			if (compareGenerated(memory, a, b) > 0) {
 				array[start] = b;
 				array[start + 1] = a;
 			}
@@ -1952,7 +1987,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				for (let j = i; j > start; j--) {
 					let a = array[j - 1];
 					let b = array[j];
-					if (compareGenerated(a, b) <= 0) {
+					if (compareGenerated(memory, a, b) <= 0) {
 						break;
 					}
 					array[j - 1] = b;
@@ -1960,9 +1995,27 @@ return /******/ (function(modules) { // webpackBootstrap
 				}
 			}
 		} else {
-			quickSort(array, compareGenerated, start);
+			quickSort(memory, array, compareGenerated, start);
 		}
 	}
+
+	BasicSourceMapConsumer.prototype._allocateMapping = function (mapping) {
+		let start = this._finger;
+		let end = start + 6;
+		if (end > this._memory.length) {
+			let _start = Date.now();
+			let memory = new Int32Array(this._memory.length * 2);
+			memory.set(this._memory);
+			this._memory = memory;
+			let _end = Date.now();
+		}
+		this._finger = end;
+		let memory = this._memory;
+		mapping._memory = memory;
+		mapping.pointer = start;
+		mapping.name = 0x7fffffff;
+		mapping.source = 0x7fffffff;
+	};
 
 	/**
 	 * Parse the mappings in a string in to a data structure which we can easily
@@ -1982,7 +2035,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var temp = {};
 	    var originalMappings = [];
 	    var generatedMappings = [];
-	    var mapping, str, end, value;
+	    var mapping = new Mapping(), str, end, value;
 
       var segmentLength = 0;
       var segment = new Int32Array(5);
@@ -1990,11 +2043,14 @@ return /******/ (function(modules) { // webpackBootstrap
       let previousGeneratedLineStart = 0;
       let howMuchToSort = [];
 
+      // Allocate 4MB of memory
+      this._memory = new Int32Array(Math.ceil(aStr.length / 1024) * 1024);
+      this._finger = 0;
 
       var startParsing = Date.now();
 	    while (index < length) {
 	      if (aStr.charAt(index) === ';') {
-	      	sortGenerated(generatedMappings, previousGeneratedLineStart);
+	      	sortGenerated(this._memory, generatedMappings, previousGeneratedLineStart);
 	        generatedLine++;
 	        index++;
 	        previousGeneratedColumn = 0;
@@ -2004,7 +2060,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        index++;
 	      }
 	      else {
-	        mapping = new Mapping();
+	        // mapping = new Mapping();
+	        this._allocateMapping(mapping);
+
 	        mapping.generatedLine = generatedLine;
 
 	          segmentLength = 0;
@@ -2026,32 +2084,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	          }
 
 	        // Generated column.
-	        mapping.generatedColumn = previousGeneratedColumn + segment[0];
-	        previousGeneratedColumn = mapping.generatedColumn;
+	        previousGeneratedColumn += segment[0];
+	        mapping.generatedColumn = previousGeneratedColumn;
 
 	        if (segmentLength > 1) {
 	          // Original source.
-	          mapping.source = previousSource + segment[1];
 	          previousSource += segment[1];
+	          mapping.source = previousSource;
 
 	          // Original line.
-	          mapping.originalLine = previousOriginalLine + segment[2];
-	          previousOriginalLine = mapping.originalLine;
+	          previousOriginalLine += segment[2];
 	          // Lines are stored 0-based
-	          mapping.originalLine += 1;
+	          mapping.originalLine = previousOriginalLine + 1;
 
 	          // Original column.
-	          mapping.originalColumn = previousOriginalColumn + segment[3];
-	          previousOriginalColumn = mapping.originalColumn;
+	          previousOriginalColumn += segment[3];
+	          mapping.originalColumn = previousOriginalColumn;
 
 	          if (segmentLength > 4) {
 	            // Original name.
-	            mapping.name = previousName + segment[4];
 	            previousName += segment[4];
+	            mapping.name = previousName;
 	          }
 	        }
 
-	        generatedMappings.push(mapping);
+	        generatedMappings.push(mapping.pointer);
 	        if (typeof mapping.originalLine === 'number') {
 	        	while (originalMappings.length <= previousSource) {
 	        		originalMappings.push(null);
@@ -2059,7 +2116,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        	if (originalMappings[previousSource] === null) {
 	        		originalMappings[previousSource] = [];
 	        	}
-	          originalMappings[previousSource].push(mapping);
+	          originalMappings[previousSource].push(mapping.pointer);
 	        }
 	      }
 	    }
@@ -2080,7 +2137,7 @@ return /******/ (function(modules) { // webpackBootstrap
       var startSortOriginal = Date.now();
       for (var i = 0; i < originalMappings.length; i++) {
       	if (originalMappings[i] != null) {
-    	    quickSort(originalMappings[i], util.compareByOriginalPositionsNoSource);
+    	    quickSort(this._memory, originalMappings[i], util.compareByOriginalPositionsNoSource);
       	}
       }
 	    this.__originalMappings = originalMappings;
@@ -2843,7 +2900,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} r
 	 *        End index of the array
 	 */
-	function doQuickSort(ary, p, r) {
+	function doQuickSort(memory, ary, p, r) {
 	  // If our lower bound is less than our upper bound, we (1) partition the
 	  // array into two pieces and (2) recurse on each half. If it is not, this is
 	  // the empty array and our base case.
@@ -2873,7 +2930,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    //
 	    //   * Every element in `ary[i+1 .. j-1]` is greater than the pivot.
 	    for (var j = p; j < r; j++) {
-	      if (comparator(ary[j], pivot, false) <= 0) {
+	      if (comparator(memory, ary[j], pivot, false) <= 0) {
 	        i += 1;
 	        swap(ary, i, j);
 	      }
@@ -2884,8 +2941,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    // (2) Recurse on each half.
 
-	    doQuickSort(ary, p, q - 1);
-	    doQuickSort(ary, q + 1, r);
+	    doQuickSort(memory, ary, p, q - 1);
+	    doQuickSort(memory, ary, q + 1, r);
 	  }
 	}
 
@@ -2908,13 +2965,13 @@ function cloneSort(comparator) {
 	 * @param {function} comparator
 	 *        Function to use to compare two items.
 	 */
-	exports.quickSort = function (ary, comparator, index) {
+	exports.quickSort = function (memory, ary, comparator, index) {
 	  var doQuickSort = sortCache.get(comparator);
     if (typeof doQuickSort === 'undefined') {
       doQuickSort = cloneSort(comparator);
       sortCache.set(comparator, doQuickSort);
     }
-    doQuickSort(ary, index | 0, ary.length - 1);
+    doQuickSort(memory, ary, index | 0, ary.length - 1);
 	};
 
 
