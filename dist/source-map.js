@@ -640,6 +640,37 @@ return /******/ (function(modules) { // webpackBootstrap
 	  aOutParam.rest = aIndex;
 	};
 
+	const base64Mapping = new Int8Array(256);
+	for (var i = 0; i < 256; i++) {
+	  base64Mapping[i] = base64.decode(i);
+	}
+
+	/**
+	 * Decodes the next base 64 VLQ value from the given string and returns the
+	 * value and the rest of the string via the out parameter.
+	 */
+	exports.decodeArr = function base64VLQ_decodeArr(aStr, aIndex, aOutParam) {
+	  var strLen = aStr.length; const decode = base64.decode;
+	  var result = 0;
+	  var shift = 0;
+	  let digit = 0;
+	  do {
+	    if (aIndex >= strLen) {
+	      throw new Error("Expected more digits in base 64 VLQ value.");
+	    }
+
+	    digit = aStr[aIndex++];
+      digit = base64Mapping[digit];
+	    result = (result + ((digit & 0x1f) << shift)) | 0;
+	    shift += 5;
+	  } while ((digit & 0x20) != 0);
+    if (digit === -1) {
+      throw new Error("Invalid base64 digit: " + aStr.charAt(aIndex - 1));
+    }
+
+	  aOutParam.value = fromVLQSigned(result);
+	  aOutParam.rest = aIndex;
+	};
 
 /***/ }),
 /* 3 */
@@ -2034,15 +2065,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var previousOriginalColumn = 0;
 	    var previousSource = 0;
 	    var previousName = 0;
-	    var length = aStr.length;
 	    var index = 0;
 	    var temp = {};
 	    var originalMappings = [];
 	    var generatedMappings = [];
 	    var mapping, str, end, value;
 
+	    var arr = aStr;
+	    // var startDecoding = Date.now();
+	    // var arr = textEncoder.encode(aStr);
+	    // var endDecoding = Date.now();
+
+	    var length = arr.length;
+
       var segmentLength = 0;
       var segment = new Int32Array(5);
+      let decode = base64VLQ.decodeArr;
 
       let previousGeneratedLineStart = 0;
       let howMuchToSort = [];
@@ -2054,14 +2092,14 @@ return /******/ (function(modules) { // webpackBootstrap
 
       var startParsing = Date.now();
 	    while (index < length) {
-	      if (aStr.charAt(index) === ';') {
+	      if (arr[index] === 59) {
 	      	sortGenerated(this._memory, generatedMappings, previousGeneratedLineStart);
 	        generatedLine++;
 	        index++;
 	        previousGeneratedColumn = 0;
 	        previousGeneratedLineStart = generatedMappings.length;
 	      }
-	      else if (aStr.charAt(index) === ',') {
+	      else if (arr[index] === 44) {
 	        index++;
 	      }
 	      else {
@@ -2071,8 +2109,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        mapping.generatedLine = generatedLine;
 
 	          segmentLength = 0;
-	          while (aStr.charCodeAt(index) !== 59 && aStr.charCodeAt(index) !== 44) {
-	            base64VLQ.decode(aStr, index, temp);
+	          while (arr[index] !== 59 && arr[index] !== 44) {
+	            decode(arr, index, temp);
 	            value = temp.value;
 	            index = temp.rest;
               if (segmentLength < 5) {
@@ -2148,6 +2186,7 @@ return /******/ (function(modules) { // webpackBootstrap
       }
 	    this.__originalMappings = originalMappings;
       var endSortOriginal = Date.now();
+      //console.log(`decoding took ${(endDecoding - startDecoding).toFixed(2)}`);
       console.log(`${(endParsing - startParsing).toFixed(2)}, ${(endSortGenerated - startSortGenerated).toFixed(2)}, ${(endSortOriginal - startSortOriginal).toFixed(2)}`);
 	  };
 

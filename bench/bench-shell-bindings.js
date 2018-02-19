@@ -16,6 +16,13 @@ load("./stats.js");
 load("../dist/source-map.js");
 load("./bench.js");
 
+function encode(str) {
+  let arr = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) arr[i] = str.charCodeAt(i);
+  return arr;
+}
+testSourceMap.mappings = encode(testSourceMap.mappings);
+
 print("Parsing source map");
 print(benchmarkParseSourceMap());
 print();
