@@ -1014,6 +1014,56 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	/**
+	 * Provide the JIT with a nice shape / hidden class.
+	 */
+	function Mapping(memory, start) {
+		this._memory = memory;
+		this.pointer = start;
+	}
+  exports.Mapping = Mapping;
+
+	Mapping.prototype = {
+    get generatedLine () {
+      return this._memory[this.pointer + 0];
+    },
+    get generatedColumn () {
+      return this._memory[this.pointer + 1];
+    },
+    get source () {
+      return this._memory[this.pointer + 2];
+    },
+    get originalLine () {
+      return this._memory[this.pointer + 3];
+    },
+    get originalColumn () {
+      return this._memory[this.pointer + 4];
+    },
+    get name () {
+      return this._memory[this.pointer + 5];
+    },
+    set generatedLine (value) {
+      this._memory[this.pointer + 0] = value;
+    },
+    set generatedColumn (value) {
+      this._memory[this.pointer + 1] = value;
+    },
+    set source (value) {
+      this._memory[this.pointer + 2] = value;
+    },
+    set originalLine (value) {
+      this._memory[this.pointer + 3] = value;
+    },
+    set originalColumn (value) {
+      this._memory[this.pointer + 4] = value;
+    },
+    set name (value) {
+      this._memory[this.pointer + 5] = value;
+    },
+	};
+
+
+
+	/**
 	 * Comparator between two mappings where the original positions are compared.
 	 *
 	 * Optionally pass in `true` as `onlyCompareGenerated` to consider two
@@ -1921,53 +1971,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	});
 
-	/**
-	 * Provide the JIT with a nice shape / hidden class.
-	 */
-	function Mapping() {
-		this._memory = null;
-		this.pointer = 0;
-	}
-
-	Mapping.prototype = {
-    get generatedLine () {
-      return this._memory[this.pointer + 0];
-    },
-    get generatedColumn () {
-      return this._memory[this.pointer + 1];
-    },
-    get source () {
-      return this._memory[this.pointer + 2];
-    },
-    get originalLine () {
-      return this._memory[this.pointer + 3];
-    },
-    get originalColumn () {
-      return this._memory[this.pointer + 4];
-    },
-    get name () {
-      return this._memory[this.pointer + 5];
-    },
-    set generatedLine (value) {
-      this._memory[this.pointer + 0] = value;
-    },
-    set generatedColumn (value) {
-      this._memory[this.pointer + 1] = value;
-    },
-    set source (value) {
-      this._memory[this.pointer + 2] = value;
-    },
-    set originalLine (value) {
-      this._memory[this.pointer + 3] = value;
-    },
-    set originalColumn (value) {
-      this._memory[this.pointer + 4] = value;
-    },
-    set name (value) {
-      this._memory[this.pointer + 5] = value;
-    },
-	};
-
+  const Mapping = util.Mapping;
   const compareGenerated = util.compareByGeneratedPositionsDeflatedNoLine;
 
 	function sortGenerated(memory, array, start) {
@@ -2035,7 +2039,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    var temp = {};
 	    var originalMappings = [];
 	    var generatedMappings = [];
-	    var mapping = new Mapping(), str, end, value;
+	    var mapping, str, end, value;
 
       var segmentLength = 0;
       var segment = new Int32Array(5);
@@ -2044,8 +2048,9 @@ return /******/ (function(modules) { // webpackBootstrap
       let howMuchToSort = [];
 
       // Allocate 4MB of memory
-      this._memory = new Int32Array(Math.ceil(aStr.length / 1024) * 1024);
+      this._memory = new Int32Array(1 * 1024 * 1024);
       this._finger = 0;
+      mapping = new Mapping(null, null);
 
       var startParsing = Date.now();
 	    while (index < length) {
@@ -2109,7 +2114,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 
 	        generatedMappings.push(mapping.pointer);
-	        if (typeof mapping.originalLine === 'number') {
+	        if (segmentLength > 1) {
 	        	while (originalMappings.length <= previousSource) {
 	        		originalMappings.push(null);
 	        	}
@@ -2120,6 +2125,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	      }
 	    }
+      sortGenerated(generatedMappings, previousGeneratedLineStart);
       var endParsing = Date.now();
 
       var startSortGenerated = Date.now();
